@@ -11,8 +11,8 @@ import (
 func main() {
 	log.Println("Running the main function!")
 
-	// mux := http.NewServeMux()
+	mux := http.NewServeMux()
 
-	// mux.HandleFunc("/", getitems.GetItemsHandler)
-	algnhsa.ListenAndServe(http.HandlerFunc(getitems.GetItemsHandler), nil)
+	mux.HandleFunc("/", getitems.GetItemsHandler)
+	algnhsa.ListenAndServe(mux, nil)
 }

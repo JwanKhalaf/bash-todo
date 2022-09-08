@@ -1,11 +1,12 @@
 package main
 
 import (
-    "github.com/aws/aws-cdk-go/awscdkapigatewayv2alpha/v2"
-    "github.com/aws/aws-cdk-go/awscdkapigatewayv2integrationsalpha/v2"
-    "github.com/aws/aws-cdk-go/awscdklambdagoalpha/v2"
 	"github.com/aws/aws-cdk-go/awscdk/v2"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsdynamodb"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awslambda"
+	"github.com/aws/aws-cdk-go/awscdkapigatewayv2alpha/v2"
+	"github.com/aws/aws-cdk-go/awscdkapigatewayv2integrationsalpha/v2"
+	"github.com/aws/aws-cdk-go/awscdklambdagoalpha/v2"
 	"github.com/aws/jsii-runtime-go"
 
 	"github.com/aws/constructs-go/constructs/v10"
@@ -30,22 +31,30 @@ func NewGoTodoAppStack(scope constructs.Construct, id string, props *GoTodoAppSt
 			Type: awsdynamodb.AttributeType_STRING},
 	})
 
+	bundlingOptions := &awscdklambdagoalpha.BundlingOptions{
+		GoBuildFlags: &[]*string{jsii.String(`-ldflags "-s -w" -tags lambda.norpc`)},
+	}
+
 	handler := awscdklambdagoalpha.NewGoFunction(stack, jsii.String("Function"), &awscdklambdagoalpha.GoFunctionProps{
-		Entry:       jsii.String("../api/getitems/lambda"),
-		Environment: &map[string]*string{"DYNAMODB_TABLENAME": table.TableName()},
+		Architecture: awslambda.Architecture_ARM_64(),
+		Entry:        jsii.String("../api/getitems/lambda"),
+		Environment:  &map[string]*string{"DYNAMODB_TABLENAME": table.TableName()},
+		Bundling:     bundlingOptions,
+		MemorySize:   jsii.Number(1024),
+		Timeout:      awscdk.Duration_Millis(jsii.Number(15000)),
 	})
 
-    table.GrantReadWriteData(handler)
+	table.GrantReadWriteData(handler)
 
-    integration := awscdkapigatewayv2integrationsalpha.NewHttpLambdaIntegration(jsii.String("mylambdaintegration"), handler, &awscdkapigatewayv2integrationsalpha.HttpLambdaIntegrationProps {
-      PayloadFormatVersion: awscdkapigatewayv2alpha.PayloadFormatVersion_VERSION_2_0(),
-    })
+	integration := awscdkapigatewayv2integrationsalpha.NewHttpLambdaIntegration(jsii.String("mylambdaintegration"), handler, &awscdkapigatewayv2integrationsalpha.HttpLambdaIntegrationProps{
+		PayloadFormatVersion: awscdkapigatewayv2alpha.PayloadFormatVersion_VERSION_2_0(),
+	})
 
-    api := awscdkapigatewayv2alpha.NewHttpApi(stack, jsii.String("Api"), &awscdkapigatewayv2alpha.HttpApiProps{
-      DefaultIntegration: integration,
-    })
+	api := awscdkapigatewayv2alpha.NewHttpApi(stack, jsii.String("Api"), &awscdkapigatewayv2alpha.HttpApiProps{
+		DefaultIntegration: integration,
+	})
 
-    awscdk.NewCfnOutput(stack, jsii.String("ApiUrl"), &awscdk.CfnOutputProps{Value: api.Url()})
+	awscdk.NewCfnOutput(stack, jsii.String("ApiUrl"), &awscdk.CfnOutputProps{Value: api.Url()})
 
 	return stack
 }
