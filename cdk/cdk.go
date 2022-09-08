@@ -1,39 +1,59 @@
 package main
 
 import (
+    "github.com/aws/aws-cdk-go/awscdkapigatewayv2alpha/v2"
+    "github.com/aws/aws-cdk-go/awscdkapigatewayv2integrationsalpha/v2"
+    "github.com/aws/aws-cdk-go/awscdklambdagoalpha/v2"
 	"github.com/aws/aws-cdk-go/awscdk/v2"
-	// "github.com/aws/aws-cdk-go/awscdk/v2/awssqs"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awsdynamodb"
+	"github.com/aws/jsii-runtime-go"
+
 	"github.com/aws/constructs-go/constructs/v10"
-	// "github.com/aws/jsii-runtime-go"
 )
 
-type CdkStackProps struct {
+type GoTodoAppStackProps struct {
 	awscdk.StackProps
 }
 
-func NewCdkStack(scope constructs.Construct, id string, props *CdkStackProps) awscdk.Stack {
+func NewGoTodoAppStack(scope constructs.Construct, id string, props *GoTodoAppStackProps) awscdk.Stack {
 	var sprops awscdk.StackProps
+
 	if props != nil {
 		sprops = props.StackProps
 	}
+
 	stack := awscdk.NewStack(scope, &id, &sprops)
 
-	// The code that defines your stack goes here
+	table := awsdynamodb.NewTable(stack, jsii.String("Todo"), &awsdynamodb.TableProps{
+		PartitionKey: &awsdynamodb.Attribute{
+			Name: jsii.String("task"),
+			Type: awsdynamodb.AttributeType_STRING},
+	})
 
-	// example resource
-	// queue := awssqs.NewQueue(stack, jsii.String("CdkQueue"), &awssqs.QueueProps{
-	// 	VisibilityTimeout: awscdk.Duration_Seconds(jsii.Number(300)),
-	// })
+	handler := awscdklambdagoalpha.NewGoFunction(stack, jsii.String("Function"), &awscdklambdagoalpha.GoFunctionProps{
+		Entry:       jsii.String("../api/getitems/lambda"),
+		Environment: &map[string]*string{"DYNAMODB_TABLENAME": table.TableName()},
+	})
+
+    table.GrantReadWriteData(handler)
+
+    integration := awscdkapigatewayv2integrationsalpha.NewHttpLambdaIntegration(jsii.String("mylambdaintegration"), handler, &awscdkapigatewayv2integrationsalpha.HttpLambdaIntegrationProps {
+      PayloadFormatVersion: awscdkapigatewayv2alpha.PayloadFormatVersion_VERSION_2_0(),
+    })
+
+    api := awscdkapigatewayv2alpha.NewHttpApi(stack, jsii.String("Api"), &awscdkapigatewayv2alpha.HttpApiProps{
+      DefaultIntegration: integration,
+    })
+
+    awscdk.NewCfnOutput(stack, jsii.String("ApiUrl"), &awscdk.CfnOutputProps{Value: api.Url()})
 
 	return stack
 }
 
 func main() {
-	defer jsii.Close()
-
 	app := awscdk.NewApp(nil)
 
-	NewCdkStack(app, "CdkStack", &CdkStackProps{
+	NewGoTodoAppStack(app, "GoTodoAppStack", &GoTodoAppStackProps{
 		awscdk.StackProps{
 			Env: env(),
 		},
