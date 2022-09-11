@@ -23,10 +23,10 @@ func NewGoTodoAppStack(scope constructs.Construct, id string, props *GoTodoAppSt
 		sprops = props.StackProps
 	}
 
-    // create a new stack
+	// create a new stack
 	stack := awscdk.NewStack(scope, &id, &sprops)
 
-    // create a dynamodb table to store the tasks
+	// create a dynamodb table to store the tasks
 	table := awsdynamodb.NewTable(stack, jsii.String("tasks"), &awsdynamodb.TableProps{
 		PartitionKey: &awsdynamodb.Attribute{
 			Name: jsii.String("task_id"),
@@ -35,19 +35,19 @@ func NewGoTodoAppStack(scope constructs.Construct, id string, props *GoTodoAppSt
 		TimeToLiveAttribute: jsii.String("time_to_live"),
 	})
 
-    // add a global secondary index based on user_id
+	// add a global secondary index based on user_id
 	table.AddGlobalSecondaryIndex(&awsdynamodb.GlobalSecondaryIndexProps{
-		IndexName: jsii.String("user-index"),
-		PartitionKey: &awsdynamodb.Attribute { Name: jsii.String("user_id"), Type: awsdynamodb.AttributeType_STRING },
-		SortKey: &awsdynamodb.Attribute { Name: jsii.String("created_at"), Type: awsdynamodb.AttributeType_STRING },
+		IndexName:    jsii.String("user-index"),
+		PartitionKey: &awsdynamodb.Attribute{Name: jsii.String("user_id"), Type: awsdynamodb.AttributeType_STRING},
+		SortKey:      &awsdynamodb.Attribute{Name: jsii.String("created_at"), Type: awsdynamodb.AttributeType_STRING},
 	})
 
-    // bundling options to make go fast
+	// bundling options to make go fast
 	bundlingOptions := &awscdklambdagoalpha.BundlingOptions{
 		GoBuildFlags: &[]*string{jsii.String(`-ldflags "-s -w" -tags lambda.norpc`)},
 	}
 
-    // creating the aws lambda
+	// creating the aws lambda
 	handler := awscdklambdagoalpha.NewGoFunction(stack, jsii.String("Function"), &awscdklambdagoalpha.GoFunctionProps{
 		Architecture: awslambda.Architecture_ARM_64(),
 		Entry:        jsii.String("../api/getitems/lambda"),
@@ -57,20 +57,20 @@ func NewGoTodoAppStack(scope constructs.Construct, id string, props *GoTodoAppSt
 		Timeout:      awscdk.Duration_Millis(jsii.Number(15000)),
 	})
 
-    // grant dynamodb read write permissions to the lambda
+	// grant dynamodb read write permissions to the lambda
 	table.GrantReadWriteData(handler)
 
-    // integrate api gateway with the lambda
+	// integrate api gateway with the lambda
 	integration := awscdkapigatewayv2integrationsalpha.NewHttpLambdaIntegration(jsii.String("mylambdaintegration"), handler, &awscdkapigatewayv2integrationsalpha.HttpLambdaIntegrationProps{
 		PayloadFormatVersion: awscdkapigatewayv2alpha.PayloadFormatVersion_VERSION_2_0(),
 	})
 
-    // create a new http api gateway
+	// create a new http api gateway
 	api := awscdkapigatewayv2alpha.NewHttpApi(stack, jsii.String("Api"), &awscdkapigatewayv2alpha.HttpApiProps{
 		DefaultIntegration: integration,
 	})
 
-    // output the lambda url to the console
+	// output the lambda url to the console
 	awscdk.NewCfnOutput(stack, jsii.String("ApiUrl"), &awscdk.CfnOutputProps{Value: api.Url()})
 
 	return stack
