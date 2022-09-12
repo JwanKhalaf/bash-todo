@@ -28,7 +28,7 @@ func GetItemsHandler(w http.ResponseWriter, r *http.Request) {
 	// using the sdk's default configuration, loading additional config
 	// and credentials values from the environment variables, shared
 	// credentials, and shared configuration files
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("us-west-2"))
+	cfg, err := config.LoadDefaultConfig(context.TODO())
 
 	if err != nil {
 		log.Fatalf("unable to load sdk config, %v", err)
