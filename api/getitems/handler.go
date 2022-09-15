@@ -17,7 +17,8 @@ var dynamodbTableName string
 var dynamodbService *dynamodb.Client
 
 func init() {
-	dynamodbTableName, ok := os.LookupEnv("DYNAMODB_TABLENAME")
+	var ok bool
+	dynamodbTableName, ok = os.LookupEnv("DYNAMODB_TABLENAME")
 	if !ok {
 		log.Fatal("the DYNAMODB_TABLENAME variable was not set!")
 	}
@@ -33,7 +34,9 @@ func init() {
 }
 
 func listTasks(ctx context.Context) (tasks []Task, err error) {
-	result, err := dynamodbService.Scan(ctx, &dynamodb.ScanInput{
+	log.Printf("dynamodbTableName is set to %q", dynamodbTableName)
+
+	response, err := dynamodbService.Scan(ctx, &dynamodb.ScanInput{
 		TableName: aws.String(dynamodbTableName),
 	})
 	if err != nil {
@@ -41,7 +44,7 @@ func listTasks(ctx context.Context) (tasks []Task, err error) {
 		return
 	}
 
-	err = attributevalue.UnmarshalListOfMaps(result.Items, &tasks)
+	err = attributevalue.UnmarshalListOfMaps(response.Items, &tasks)
 	return
 }
 
