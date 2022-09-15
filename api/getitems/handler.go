@@ -3,6 +3,7 @@ package getitems
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -12,57 +13,51 @@ import (
 	"os"
 )
 
-func GetItemsHandler(w http.ResponseWriter, r *http.Request) {
-	const dynamodbTableNameEnvKey = "DYNAMODB_TABLENAME"
+var dynamodbTableName string
+var dynamodbService *dynamodb.Client
 
-	dynamodbTableName, ok := os.LookupEnv(dynamodbTableNameEnvKey)
-
+func init() {
+	dynamodbTableName, ok := os.LookupEnv("DYNAMODB_TABLENAME")
 	if !ok {
-		log.Fatalf("the %v variable was not set!", dynamodbTableNameEnvKey)
-	} else {
-		log.Printf("The %v variable is set to: %v", dynamodbTableNameEnvKey, dynamodbTableName)
+		log.Fatal("the DYNAMODB_TABLENAME variable was not set!")
 	}
 
-	log.Println("Running the GetItemsHandler!")
+	log.Printf("The DYNAMODB_TABLENAME variable is set to: %v", dynamodbTableName)
 
-	// using the sdk's default configuration, loading additional config
-	// and credentials values from the environment variables, shared
-	// credentials, and shared configuration files
 	cfg, err := config.LoadDefaultConfig(context.TODO())
-
 	if err != nil {
-		log.Fatalf("unable to load sdk config, %v", err)
+		log.Fatalf("unable to load sdk config: %v", err)
 	}
 
-	// using the config value, create the dynamodb client
-	dynamodbService := dynamodb.NewFromConfig(cfg)
+	dynamodbService = dynamodb.NewFromConfig(cfg)
+}
 
-	var tasks []Task
-
-	// build the required scan params
-	scanInput := &dynamodb.ScanInput{
+func listTasks(ctx context.Context) (tasks []Task, err error) {
+	result, err := dynamodbService.Scan(ctx, &dynamodb.ScanInput{
 		TableName: aws.String(dynamodbTableName),
-	}
-
-	response, err := dynamodbService.Scan(context.TODO(), scanInput)
-
+	})
 	if err != nil {
-		log.Printf("could not scan the dyanmodb table! error: %v", err)
-	} else {
-		err = attributevalue.UnmarshalListOfMaps(response.Items, &tasks)
-
-		if err != nil {
-			log.Printf("Couldn't unmarshal query response. Here's why: %v\n", err)
-		}
+		err = fmt.Errorf("could not scan the dyanmodb table: %w", err)
+		return
 	}
 
+	err = attributevalue.UnmarshalListOfMaps(result.Items, &tasks)
+	return
+}
+
+func GetItemsHandler(w http.ResponseWriter, r *http.Request) {
+	log.Println("Running the GetItemsHandler!")
 	w.Header().Set("Content-Type", "application/json")
 
-	jsonResponse, err := json.Marshal(tasks)
-
+	tasks, err := listTasks(r.Context())
 	if err != nil {
-		log.Fatalf("Error happened in JSON marshal. Err: %s", err)
+		log.Printf("GetItemsHandler: failed to list tasks: %v", err)
+		http.Error(w, "failed to list tasks", http.StatusInternalServerError)
+		return
 	}
 
-	w.Write(jsonResponse)
+	err = json.NewEncoder(w).Encode(tasks)
+	if err != nil {
+		log.Printf("GetItemsHandler: error in JSON marshal: %v", err)
+	}
 }
