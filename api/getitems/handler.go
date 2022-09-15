@@ -4,21 +4,23 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"log"
-	"net/http"
-	"os"
 )
 
-var dynamodbTableName string
-var dynamodbService *dynamodb.Client
+type taskStore struct {
+	client    *dynamodb.Client
+	tableName string
+}
 
-func init() {
-	var ok bool
-	dynamodbTableName, ok = os.LookupEnv("DYNAMODB_TABLENAME")
+func NewTaskStore() *taskStore {
+	dynamodbTableName, ok := os.LookupEnv("DYNAMODB_TABLENAME")
 	if !ok {
 		log.Fatal("the DYNAMODB_TABLENAME variable was not set!")
 	}
@@ -30,37 +32,45 @@ func init() {
 		log.Fatalf("unable to load sdk config: %v", err)
 	}
 
-	dynamodbService = dynamodb.NewFromConfig(cfg)
+	return &taskStore{
+		client:    dynamodb.NewFromConfig(cfg),
+		tableName: dynamodbTableName,
+	}
 }
 
-func listTasks(ctx context.Context) (tasks []Task, err error) {
-	log.Printf("dynamodbTableName is set to %q", dynamodbTableName)
-
-	response, err := dynamodbService.Scan(ctx, &dynamodb.ScanInput{
-		TableName: aws.String(dynamodbTableName),
+func (d *taskStore) ListTasks(ctx context.Context) ([]Task, error) {
+	response, err := d.client.Scan(ctx, &dynamodb.ScanInput{
+		TableName: aws.String(d.tableName),
 	})
 	if err != nil {
-		err = fmt.Errorf("could not scan the dyanmodb table: %w", err)
-		return
+		return nil, fmt.Errorf("could not scan the dyanmodb table: %w", err)
 	}
 
+	var tasks []Task
 	err = attributevalue.UnmarshalListOfMaps(response.Items, &tasks)
-	return
+	return tasks, err
 }
 
-func GetItemsHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Running the GetItemsHandler!")
-	w.Header().Set("Content-Type", "application/json")
+type TaskLister interface {
+	ListTasks(context.Context) ([]Task, error)
+}
 
-	tasks, err := listTasks(r.Context())
-	if err != nil {
-		log.Printf("GetItemsHandler: failed to list tasks: %v", err)
-		http.Error(w, "failed to list tasks", http.StatusInternalServerError)
-		return
-	}
+func GetItemsHandler(lister TaskLister) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Println("Running the GetItemsHandler!")
 
-	err = json.NewEncoder(w).Encode(tasks)
-	if err != nil {
-		log.Printf("GetItemsHandler: error in JSON marshal: %v", err)
-	}
+		w.Header().Set("Content-Type", "application/json")
+
+		tasks, err := lister.ListTasks(r.Context())
+		if err != nil {
+			log.Printf("GetItemsHandler: failed to list tasks: %v", err)
+			http.Error(w, "failed to list tasks", http.StatusInternalServerError)
+			return
+		}
+
+		err = json.NewEncoder(w).Encode(tasks)
+		if err != nil {
+			log.Printf("GetItemsHandler: error in JSON marshal: %v", err)
+		}
+	})
 }

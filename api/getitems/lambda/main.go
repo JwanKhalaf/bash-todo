@@ -13,6 +13,6 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", getitems.GetItemsHandler)
+	mux.Handle("/", getitems.GetItemsHandler(getitems.NewTaskStore()))
 	algnhsa.ListenAndServe(mux, nil)
 }
