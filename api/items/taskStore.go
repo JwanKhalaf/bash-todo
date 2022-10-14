@@ -1,25 +1,30 @@
-package getitems
+package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/google/uuid"
 )
 
-type taskStore struct {
+type TaskStore struct {
 	client    *dynamodb.Client
 	tableName string
 }
 
-func NewTaskStore() *taskStore {
+type TasksRepository interface {
+	ListTasks(context.Context) ([]Task, error)
+	CreateTask(ctx context.Context, task string) (string, error)
+}
+
+func NewTaskStore() *TaskStore {
 	dynamodbTableName, ok := os.LookupEnv("DYNAMODB_TABLENAME")
 	if !ok {
 		log.Fatal("the DYNAMODB_TABLENAME variable was not set!")
@@ -32,13 +37,13 @@ func NewTaskStore() *taskStore {
 		log.Fatalf("unable to load sdk config: %v", err)
 	}
 
-	return &taskStore{
+	return &TaskStore{
 		client:    dynamodb.NewFromConfig(cfg),
 		tableName: dynamodbTableName,
 	}
 }
 
-func (d *taskStore) ListTasks(ctx context.Context) ([]Task, error) {
+func (d *TaskStore) ListTasks(ctx context.Context) ([]Task, error) {
 	response, err := d.client.Scan(ctx, &dynamodb.ScanInput{
 		TableName: aws.String(d.tableName),
 	})
@@ -51,26 +56,29 @@ func (d *taskStore) ListTasks(ctx context.Context) ([]Task, error) {
 	return tasks, err
 }
 
-type TaskLister interface {
-	ListTasks(context.Context) ([]Task, error)
-}
+func (d *TaskStore) CreateTask(ctx context.Context, task string) (string, error) {
+	staticUserId := "8600aab6-d540-4228-8af5-35218bd564a6"
 
-func GetItemsHandler(lister TaskLister) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Println("Running the GetItemsHandler!")
+	item := Task{
+		TaskId:    uuid.New().String(),
+		UserId:    staticUserId,
+		Content:   task,
+		CreatedAt: time.Now().Format(time.RFC3339),
+		IsDone:    false,
+	}
 
-		w.Header().Set("Content-Type", "application/json")
+	av, err := attributevalue.MarshalMap(item)
+	if err != nil {
+		return "", fmt.Errorf("could not marshal map task: %w", err)
+	}
 
-		tasks, err := lister.ListTasks(r.Context())
-		if err != nil {
-			log.Printf("GetItemsHandler: failed to list tasks: %v", err)
-			http.Error(w, "failed to list tasks", http.StatusInternalServerError)
-			return
-		}
-
-		err = json.NewEncoder(w).Encode(tasks)
-		if err != nil {
-			log.Printf("GetItemsHandler: error in JSON marshal: %v", err)
-		}
+	_, err = d.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(d.tableName),
+		Item:      av,
 	})
+	if err != nil {
+		return "", fmt.Errorf("could not put item into dynamodb table: %w", err)
+	}
+
+	return item.TaskId, err
 }

@@ -1,4 +1,4 @@
-package getitems
+package main
 
 type Task struct {
 	TaskId    string `dynamodbav:"task_id" json:"task_id"`
