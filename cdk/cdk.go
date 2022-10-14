@@ -50,7 +50,7 @@ func NewGoTodoAppStack(scope constructs.Construct, id string, props *GoTodoAppSt
 	// creating the aws lambda for listing items
 	listItemsHandler := awscdklambdagoalpha.NewGoFunction(stack, jsii.String("ListItemsFunction"), &awscdklambdagoalpha.GoFunctionProps{
 		Architecture: awslambda.Architecture_ARM_64(),
-		Entry:        jsii.String("../api/items/list"),
+		Entry:        jsii.String("../api/items/list/lambda"),
 		Environment:  &map[string]*string{"DYNAMODB_TABLENAME": table.TableName()},
 		Bundling:     bundlingOptions,
 		MemorySize:   jsii.Number(1024),
@@ -63,7 +63,7 @@ func NewGoTodoAppStack(scope constructs.Construct, id string, props *GoTodoAppSt
 	// creating the aws lambda for creating a new item
 	createItemHandler := awscdklambdagoalpha.NewGoFunction(stack, jsii.String("CreateItemFunction"), &awscdklambdagoalpha.GoFunctionProps{
 		Architecture: awslambda.Architecture_ARM_64(),
-		Entry:        jsii.String("../api/items/create"),
+		Entry:        jsii.String("../api/items/create/lambda"),
 		Environment:  &map[string]*string{"DYNAMODB_TABLENAME": table.TableName()},
 		Bundling:     bundlingOptions,
 		MemorySize:   jsii.Number(1024),
