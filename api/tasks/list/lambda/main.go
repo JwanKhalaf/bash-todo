@@ -14,6 +14,6 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.Handle("/", list.GetListItemsHandler(tasks.NewTaskStore()))
+	mux.Handle("/", list.GetListTasksHandler(tasks.NewTaskStore()))
 	algnhsa.ListenAndServe(mux, nil)
 }

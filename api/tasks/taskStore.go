@@ -60,8 +60,8 @@ func (d *TaskStore) CreateTask(ctx context.Context, task string) (string, error)
 	staticUserId := "8600aab6-d540-4228-8af5-35218bd564a6"
 
 	item := Task{
-		TaskId:    uuid.New().String(),
-		UserId:    staticUserId,
+		TaskID:    uuid.New().String(),
+		UserID:    staticUserId,
 		Content:   task,
 		CreatedAt: time.Now().Format(time.RFC3339),
 		IsDone:    false,
@@ -80,5 +80,5 @@ func (d *TaskStore) CreateTask(ctx context.Context, task string) (string, error)
 		return "", fmt.Errorf("could not put item into dynamodb table: %w", err)
 	}
 
-	return item.TaskId, err
+	return item.TaskID, err
 }

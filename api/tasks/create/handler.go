@@ -3,35 +3,57 @@ package create
 import (
 	"encoding/json"
 	"log"
+	"mime"
 	"net/http"
 
 	"github.com/jwankhalaf/bash-todo/api/tasks"
 )
 
-func GetCreateItemHandler(repository tasks.TasksRepository) http.Handler {
+func GetCreateTaskHandler(repository tasks.TasksRepository) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Println("Running the CreateItemHandler!")
+		log.Println("Running the CreateTaskHandler!")
 
-		w.Header().Set("Content-Type", "application/json")
+		type CreateTaskRequest struct {
+			Content string `json:"content"`
+		}
 
-		taskDescription := "Deploy the application"
+		type CreateTaskResponse struct {
+			TaskID string `json:"task_id"`
+		}
 
-		// err := json.NewDecoder(r.Body).Decode(taskDescription)
-		// if err != nil {
-		// http.Error(w, err.Error(), http.StatusBadRequest)
-		// return
-		// }
-
-		taskID, err := repository.CreateTask(r.Context(), taskDescription)
+		// enforce a json content-type
+		contentType := r.Header.Get("Content-Type")
+		mediatype, _, err := mime.ParseMediaType(contentType)
 		if err != nil {
-			log.Printf("CreateItemHandler: failed to create task: %v", err)
-			http.Error(w, "failed to create task", http.StatusInternalServerError)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		err = json.NewEncoder(w).Encode(taskID)
-		if err != nil {
-			log.Printf("GetItemsHandler: error in JSON marshal: %v", err)
+		if mediatype != "application/json" {
+			http.Error(w, "api expects application/json content-type", http.StatusUnsupportedMediaType)
+			return
 		}
+
+		dec := json.NewDecoder(r.Body)
+		dec.DisallowUnknownFields()
+		var createRequestTask CreateTaskRequest
+		if err := dec.Decode(&createRequestTask); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		taskID, err := repository.CreateTask(r.Context(), createRequestTask.Content)
+		if err != nil {
+			log.Printf("CreateTaskHandler: failed to create task: %v", err)
+			http.Error(w, "failed to create task", http.StatusInternalServerError)
+			return
+		}
+		js, err := json.Marshal(CreateTaskResponse{TaskID: taskID})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(js)
 	})
 }
