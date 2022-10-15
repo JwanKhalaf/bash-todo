@@ -38,7 +38,7 @@ func GetCreateTaskHandler(repository tasks.TasksRepository) http.Handler {
 		dec.DisallowUnknownFields()
 		var createRequestTask CreateTaskRequest
 		if err := dec.Decode(&createRequestTask); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "request body is invalid", http.StatusBadRequest)
 			return
 		}
 
