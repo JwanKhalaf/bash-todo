@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+
+	"github.com/jwankhalaf/bash-todo/api/items"
 )
 
-func GetListItemsHandler(repository TasksRepository) http.Handler {
+func GetListItemsHandler(repository items.TasksRepository) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Running the ListItemsHandler!")
 

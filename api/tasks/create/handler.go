@@ -4,16 +4,25 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+
+	"github.com/jwankhalaf/bash-todo/api/items"
 )
 
-
-func GetCreateItemHandler(repository TasksRepository) http.Handler {
+func GetCreateItemHandler(repository items.TasksRepository) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Running the CreateItemHandler!")
 
 		w.Header().Set("Content-Type", "application/json")
 
-		taskID, err := repository.CreateTask(r.Context())
+		taskDescription := "Deploy the application"
+
+		// err := json.NewDecoder(r.Body).Decode(taskDescription)
+		// if err != nil {
+		// http.Error(w, err.Error(), http.StatusBadRequest)
+		// return
+		// }
+
+		taskID, err := repository.CreateTask(r.Context(), taskDescription)
 		if err != nil {
 			log.Printf("CreateItemHandler: failed to create task: %v", err)
 			http.Error(w, "failed to create task", http.StatusInternalServerError)

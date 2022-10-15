@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/akrylysov/algnhsa"
-	"github.com/jwankhalaf/bash-todo/api/items"
-	"github.com/jwankhalaf/bash-todo/api/items/list"
+	"github.com/jwankhalaf/bash-todo/api/tasks"
+	"github.com/jwankhalaf/bash-todo/api/tasks/list"
 )
 
 func main() {
@@ -14,6 +14,6 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.Handle("/", list.GetListItemsHandler(items.NewTaskStore()))
+	mux.Handle("/", list.GetListItemsHandler(tasks.NewTaskStore()))
 	algnhsa.ListenAndServe(mux, nil)
 }
