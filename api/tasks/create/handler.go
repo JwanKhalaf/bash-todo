@@ -9,17 +9,17 @@ import (
 	"github.com/jwankhalaf/bash-todo/api/tasks"
 )
 
+type CreateTaskRequest struct {
+	Content string `json:"content"`
+}
+
+type CreateTaskResponse struct {
+	TaskID string `json:"task_id"`
+}
+
 func GetCreateTaskHandler(repository tasks.TasksRepository) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Running the CreateTaskHandler!")
-
-		type CreateTaskRequest struct {
-			Content string `json:"content"`
-		}
-
-		type CreateTaskResponse struct {
-			TaskID string `json:"task_id"`
-		}
 
 		// enforce a json content-type
 		contentType := r.Header.Get("Content-Type")
@@ -48,12 +48,15 @@ func GetCreateTaskHandler(repository tasks.TasksRepository) http.Handler {
 			http.Error(w, "failed to create task", http.StatusInternalServerError)
 			return
 		}
+
 		js, err := json.Marshal(CreateTaskResponse{TaskID: taskID})
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
+
+		w.WriteHeader(http.StatusCreated)
+		w.Header().Set("content-type", "application/json")
 		w.Write(js)
 	})
 }

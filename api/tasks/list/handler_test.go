@@ -6,9 +6,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/jwankhalaf/bash-todo/api/tasks"
 )
 
@@ -72,8 +72,8 @@ func getTasksFromResponse(t testing.TB, body io.Reader) (tasks []tasks.Task) {
 func assertTasks(t testing.TB, got, want []tasks.Task) {
 	t.Helper()
 
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("handler returned unexpected body: got %v want %v", got, want)
+	if diff := cmp.Diff(got, want); diff != "" {
+		t.Error("handler returned unexpected body", diff)
 	}
 }
 
