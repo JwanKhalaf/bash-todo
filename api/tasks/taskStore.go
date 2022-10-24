@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
 )
 
@@ -47,6 +48,9 @@ func NewTaskStore() *TaskStore {
 func (d *TaskStore) GetTask(ctx context.Context, taskID string) (Task, error) {
 	response, err := d.client.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(d.tableName),
+		Key: map[string]types.AttributeValue{
+			"task_id": &types.AttributeValueMemberS{Value: taskID},
+		},
 	})
 	if err != nil {
 		return Task{}, fmt.Errorf("could not get the item from the dyanmodb table: %w", err)
