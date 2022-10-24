@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	log.Println("running the list tasks lambda!")
+	log.Println("running the list tasks lambda...")
 
 	mux := http.NewServeMux()
 

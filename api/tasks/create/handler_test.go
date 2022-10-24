@@ -14,8 +14,13 @@ import (
 )
 
 type StubTaskStore struct {
+	getTask    func(ctx context.Context, taskID string) (tasks.Task, error)
 	listTasks  func(ctx context.Context) ([]tasks.Task, error)
 	createTask func(ctx context.Context, taskContent string) (string, error)
+}
+
+func (s *StubTaskStore) GetTask(ctx context.Context, taskID string) (tasks.Task, error) {
+	return s.getTask(ctx, taskID)
 }
 
 func (s *StubTaskStore) ListTasks(ctx context.Context) ([]tasks.Task, error) {
