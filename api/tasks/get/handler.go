@@ -12,6 +12,7 @@ import (
 func GetGetTaskHandler(repository tasks.TasksRepository) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Println("running the get task handler...")
+		log.Printf("the request url is: %q", r.URL)
 
 		// get the url param `:task-id` in `/tasks/:task-id`
 		taskID := strings.TrimPrefix(r.URL.Path, "/tasks/")
