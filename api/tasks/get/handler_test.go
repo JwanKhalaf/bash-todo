@@ -54,6 +54,34 @@ func TestGetTaskHandler(t *testing.T) {
 
 		assertStatusCode(t, response.Code, http.StatusNotFound)
 	})
+
+	t.Run("get 202 and the task when task does exist", func(t *testing.T) {
+		expectedTaskID := "test_task_id"
+		expectedTask := tasks.Task{TaskID: expectedTaskID, UserID: "test_user_id", Content: "test_content", CreatedAt: "test_created_at", IsDone: false}
+
+		taskStore := StubTaskStore{
+			getTask: func(ctx context.Context, taskID string) (tasks.Task, error) {
+				if taskID != expectedTaskID {
+					t.Errorf("got: GetTask(ctx, %s) expected GetTask(ctx, %s)", taskID, expectedTaskID)
+				}
+				return expectedTask, nil
+			},
+		}
+
+		request, _ := http.NewRequest("GET", fmt.Sprintf("/tasks/%v", expectedTaskID), nil)
+
+		response := httptest.NewRecorder()
+
+		handler := GetGetTaskHandler(&taskStore)
+
+		handler.ServeHTTP(response, request)
+
+		got := getTaskFromResponse(t, response.Body)
+
+		assertStatusCode(t, response.Code, http.StatusOK)
+
+		assertTask(t, got, expectedTask)
+	})
 }
 
 func assertStatusCode(t testing.TB, got, want int) {
@@ -64,7 +92,7 @@ func assertStatusCode(t testing.TB, got, want int) {
 	}
 }
 
-func assertTaskID(t testing.TB, got, want tasks.Task) {
+func assertTask(t testing.TB, got, want tasks.Task) {
 	t.Helper()
 
 	if diff := cmp.Diff(got, want); diff != "" {
