@@ -47,8 +47,21 @@ func NewGoTodoAppStack(scope constructs.Construct, id string, props *GoTodoAppSt
 		GoBuildFlags: &[]*string{jsii.String(`-ldflags "-s -w" -tags lambda.norpc`)},
 	}
 
+	// creating the aws lambda for getting a task
+	getTaskHandler := awscdklambdagoalpha.NewGoFunction(stack, jsii.String("GetTaskFunction"), &awscdklambdagoalpha.GoFunctionProps{
+		Architecture: awslambda.Architecture_ARM_64(),
+		Entry:        jsii.String("../api/tasks/get/lambda"),
+		Environment:  &map[string]*string{"DYNAMODB_TABLENAME": table.TableName()},
+		Bundling:     bundlingOptions,
+		MemorySize:   jsii.Number(1024),
+		Timeout:      awscdk.Duration_Millis(jsii.Number(15000)),
+	})
+
+	// grant dynamodb read write permissions to the get task lambda
+	table.GrantReadWriteData(getTaskHandler)
+
 	// creating the aws lambda for listing tasks
-	listItemsHandler := awscdklambdagoalpha.NewGoFunction(stack, jsii.String("ListTasksFunction"), &awscdklambdagoalpha.GoFunctionProps{
+	listTasksHandler := awscdklambdagoalpha.NewGoFunction(stack, jsii.String("ListTasksFunction"), &awscdklambdagoalpha.GoFunctionProps{
 		Architecture: awslambda.Architecture_ARM_64(),
 		Entry:        jsii.String("../api/tasks/list/lambda"),
 		Environment:  &map[string]*string{"DYNAMODB_TABLENAME": table.TableName()},
@@ -58,10 +71,10 @@ func NewGoTodoAppStack(scope constructs.Construct, id string, props *GoTodoAppSt
 	})
 
 	// grant dynamodb read write permissions to the list tasks lambda
-	table.GrantReadWriteData(listItemsHandler)
+	table.GrantReadWriteData(listTasksHandler)
 
 	// creating the aws lambda for creating a new task
-	createItemHandler := awscdklambdagoalpha.NewGoFunction(stack, jsii.String("CreateTaskFunction"), &awscdklambdagoalpha.GoFunctionProps{
+	createTaskHandler := awscdklambdagoalpha.NewGoFunction(stack, jsii.String("CreateTaskFunction"), &awscdklambdagoalpha.GoFunctionProps{
 		Architecture: awslambda.Architecture_ARM_64(),
 		Entry:        jsii.String("../api/tasks/create/lambda"),
 		Environment:  &map[string]*string{"DYNAMODB_TABLENAME": table.TableName()},
@@ -71,16 +84,25 @@ func NewGoTodoAppStack(scope constructs.Construct, id string, props *GoTodoAppSt
 	})
 
 	// grant dynamodb read write permissions to the create task lambda
-	table.GrantReadWriteData(createItemHandler)
+	table.GrantReadWriteData(createTaskHandler)
 
 	// create a new http tasksApi gateway
 	tasksApi := awscdkapigatewayv2alpha.NewHttpApi(stack, jsii.String("TasksApi"), &awscdkapigatewayv2alpha.HttpApiProps{})
+
+	// add route for getting the task
+	tasksApi.AddRoutes(&awscdkapigatewayv2alpha.AddRoutesOptions{
+		Path:    jsii.String("/tasks/{task-id}"),
+		Methods: &[]awscdkapigatewayv2alpha.HttpMethod{awscdkapigatewayv2alpha.HttpMethod_GET},
+		Integration: awscdkapigatewayv2integrationsalpha.NewHttpLambdaIntegration(jsii.String("getTaskLambdaIntegration"), getTaskHandler, &awscdkapigatewayv2integrationsalpha.HttpLambdaIntegrationProps{
+			PayloadFormatVersion: awscdkapigatewayv2alpha.PayloadFormatVersion_VERSION_2_0(),
+		}),
+	})
 
 	// add route for listing the tasks
 	tasksApi.AddRoutes(&awscdkapigatewayv2alpha.AddRoutesOptions{
 		Path:    jsii.String("/tasks"),
 		Methods: &[]awscdkapigatewayv2alpha.HttpMethod{awscdkapigatewayv2alpha.HttpMethod_GET},
-		Integration: awscdkapigatewayv2integrationsalpha.NewHttpLambdaIntegration(jsii.String("listTasksLambdaIntegration"), listItemsHandler, &awscdkapigatewayv2integrationsalpha.HttpLambdaIntegrationProps{
+		Integration: awscdkapigatewayv2integrationsalpha.NewHttpLambdaIntegration(jsii.String("listTasksLambdaIntegration"), listTasksHandler, &awscdkapigatewayv2integrationsalpha.HttpLambdaIntegrationProps{
 			PayloadFormatVersion: awscdkapigatewayv2alpha.PayloadFormatVersion_VERSION_2_0(),
 		}),
 	})
@@ -89,7 +111,7 @@ func NewGoTodoAppStack(scope constructs.Construct, id string, props *GoTodoAppSt
 	tasksApi.AddRoutes(&awscdkapigatewayv2alpha.AddRoutesOptions{
 		Path:    jsii.String("/tasks"),
 		Methods: &[]awscdkapigatewayv2alpha.HttpMethod{awscdkapigatewayv2alpha.HttpMethod_POST},
-		Integration: awscdkapigatewayv2integrationsalpha.NewHttpLambdaIntegration(jsii.String("createTaskLambdaIntegration"), createItemHandler, &awscdkapigatewayv2integrationsalpha.HttpLambdaIntegrationProps{
+		Integration: awscdkapigatewayv2integrationsalpha.NewHttpLambdaIntegration(jsii.String("createTaskLambdaIntegration"), createTaskHandler, &awscdkapigatewayv2integrationsalpha.HttpLambdaIntegrationProps{
 			PayloadFormatVersion: awscdkapigatewayv2alpha.PayloadFormatVersion_VERSION_2_0(),
 		}),
 	})

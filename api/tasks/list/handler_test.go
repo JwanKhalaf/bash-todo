@@ -13,24 +13,32 @@ import (
 )
 
 type StubTaskStore struct {
-	tasks []tasks.Task
+	getTask    func(ctx context.Context, taskID string) (tasks.Task, error)
+	listTasks  func(ctx context.Context) ([]tasks.Task, error)
+	createTask func(ctx context.Context, taskContent string) (string, error)
+}
+
+func (s *StubTaskStore) GetTask(ctx context.Context, taskID string) (tasks.Task, error) {
+	return s.getTask(ctx, taskID)
 }
 
 func (s *StubTaskStore) ListTasks(ctx context.Context) ([]tasks.Task, error) {
-	return s.tasks, nil
+	return s.listTasks(ctx)
 }
 
 func (s *StubTaskStore) CreateTask(ctx context.Context, taskContent string) (string, error) {
-	task := tasks.Task{TaskID: "test_task_id", UserID: "test_user_id", Content: taskContent, CreatedAt: "test_created_at", IsDone: false}
-	s.tasks = append(s.tasks, task)
-	return task.TaskID, nil
+	return s.createTask(ctx, taskContent)
 }
 
 func TestListTasksHandler(t *testing.T) {
 	// create the stub task store
+	var expectedTaskSlice = []tasks.Task{
+		{TaskID: "test_task_id", UserID: "test_user_id", Content: "test_content", CreatedAt: "test_created_at", IsDone: false},
+	}
+
 	taskStore := StubTaskStore{
-		tasks: []tasks.Task{
-			{TaskID: "test_task_id", UserID: "test_user_id", Content: "test_content", CreatedAt: "test_created_at", IsDone: false},
+		listTasks: func(ctx context.Context) ([]tasks.Task, error) {
+			return expectedTaskSlice, nil
 		},
 	}
 
@@ -54,7 +62,7 @@ func TestListTasksHandler(t *testing.T) {
 	assertStatusCode(t, response.Code, http.StatusOK)
 
 	// check the response body is what we expect
-	assertTasks(t, got, taskStore.tasks)
+	assertTasks(t, got, expectedTaskSlice)
 }
 
 func getTasksFromResponse(t testing.TB, body io.Reader) (tasks []tasks.Task) {
