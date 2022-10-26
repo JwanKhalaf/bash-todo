@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/google/uuid"
@@ -24,6 +25,7 @@ type TasksRepository interface {
 	GetTask(ctx context.Context, taskID string) (Task, error)
 	ListTasks(context.Context) ([]Task, error)
 	CreateTask(ctx context.Context, task string) (string, error)
+	UpdateTask(ctx context.Context, task Task) error
 }
 
 func NewTaskStore() *TaskStore {
@@ -99,4 +101,36 @@ func (d *TaskStore) CreateTask(ctx context.Context, task string) (string, error)
 	}
 
 	return item.TaskID, err
+}
+
+func (d *TaskStore) UpdateTask(ctx context.Context, task Task) error {
+	var response *dynamodb.UpdateItemOutput
+	var attributeMap map[string]map[string]interface{}
+
+	update := expression.Set(expression.Name("content"), expression.Value(task.Content))
+	update.Set(expression.Name("is_done"), expression.Value(task.IsDone))
+	expr, err := expression.NewBuilder().WithUpdate(update).Build()
+	if err != nil {
+		log.Printf("could not build expression for update, here's why: %v\n", err)
+	} else {
+		response, err = d.client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
+			TableName: aws.String(d.tableName),
+			Key: map[string]types.AttributeValue{
+				"task_id": &types.AttributeValueMemberS{Value: task.TaskID},
+			},
+			ExpressionAttributeNames:  expr.Names(),
+			ExpressionAttributeValues: expr.Values(),
+			UpdateExpression:          expr.Update(),
+		})
+		if err != nil {
+			log.Printf("coult not update task %v, here's why: %v\n", task.TaskID, err)
+		} else {
+			err = attributevalue.UnmarshalMap(response.Attributes, &attributeMap)
+			if err != nil {
+				log.Printf("could not unmarshall update response, here's why: %v\n", err)
+			}
+		}
+	}
+
+	return err
 }
