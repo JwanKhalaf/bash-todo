@@ -17,6 +17,7 @@ type StubTaskStore struct {
 	getTask    func(ctx context.Context, taskID string) (tasks.Task, error)
 	listTasks  func(ctx context.Context) ([]tasks.Task, error)
 	createTask func(ctx context.Context, taskContent string) (string, error)
+	updateTask func(ctx context.Context, task tasks.Task) error
 }
 
 func (s *StubTaskStore) GetTask(ctx context.Context, taskID string) (tasks.Task, error) {
@@ -29,6 +30,10 @@ func (s *StubTaskStore) ListTasks(ctx context.Context) ([]tasks.Task, error) {
 
 func (s *StubTaskStore) CreateTask(ctx context.Context, taskContent string) (string, error) {
 	return s.createTask(ctx, taskContent)
+}
+
+func (s *StubTaskStore) UpdateTask(ctx context.Context, task tasks.Task) error {
+	return s.updateTask(ctx, task)
 }
 
 func TestCreateTaskHandler(t *testing.T) {

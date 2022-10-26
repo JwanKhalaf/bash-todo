@@ -86,6 +86,19 @@ func NewGoTodoAppStack(scope constructs.Construct, id string, props *GoTodoAppSt
 	// grant dynamodb read write permissions to the create task lambda
 	table.GrantReadWriteData(createTaskHandler)
 
+	// creating the aws lambda for updating a task
+	updateTaskHandler := awscdklambdagoalpha.NewGoFunction(stack, jsii.String("UpdateTaskFunction"), &awscdklambdagoalpha.GoFunctionProps{
+		Architecture: awslambda.Architecture_ARM_64(),
+		Entry:        jsii.String("../api/tasks/update/lambda"),
+		Environment:  &map[string]*string{"DYNAMODB_TABLENAME": table.TableName()},
+		Bundling:     bundlingOptions,
+		MemorySize:   jsii.Number(1024),
+		Timeout:      awscdk.Duration_Millis(jsii.Number(15000)),
+	})
+
+	// grant dynamodb read write permissions to the update task lambda
+	table.GrantReadWriteData(updateTaskHandler)
+
 	// create a new http tasksApi gateway
 	tasksApi := awscdkapigatewayv2alpha.NewHttpApi(stack, jsii.String("TasksApi"), &awscdkapigatewayv2alpha.HttpApiProps{})
 
@@ -112,6 +125,15 @@ func NewGoTodoAppStack(scope constructs.Construct, id string, props *GoTodoAppSt
 		Path:    jsii.String("/tasks"),
 		Methods: &[]awscdkapigatewayv2alpha.HttpMethod{awscdkapigatewayv2alpha.HttpMethod_POST},
 		Integration: awscdkapigatewayv2integrationsalpha.NewHttpLambdaIntegration(jsii.String("createTaskLambdaIntegration"), createTaskHandler, &awscdkapigatewayv2integrationsalpha.HttpLambdaIntegrationProps{
+			PayloadFormatVersion: awscdkapigatewayv2alpha.PayloadFormatVersion_VERSION_2_0(),
+		}),
+	})
+
+	// add route for updating a task
+	tasksApi.AddRoutes(&awscdkapigatewayv2alpha.AddRoutesOptions{
+		Path:    jsii.String("/tasks/{task-id}"),
+		Methods: &[]awscdkapigatewayv2alpha.HttpMethod{awscdkapigatewayv2alpha.HttpMethod_PUT},
+		Integration: awscdkapigatewayv2integrationsalpha.NewHttpLambdaIntegration(jsii.String("createTaskLambdaIntegration"), updateTaskHandler, &awscdkapigatewayv2integrationsalpha.HttpLambdaIntegrationProps{
 			PayloadFormatVersion: awscdkapigatewayv2alpha.PayloadFormatVersion_VERSION_2_0(),
 		}),
 	})
